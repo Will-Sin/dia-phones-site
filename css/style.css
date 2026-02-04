@@ -66,6 +66,8 @@ li {
     display: flex;
     flex-direction: column; /* Stack content vertically */
     min-height: 100vh; /* Ensure the wrapper takes up at least the viewport height */
+    position: relative;
+    z-index: 1; /* Ensure text content appears above background icons */
 }
 
 p {
