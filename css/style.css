@@ -297,7 +297,6 @@ display: block;
 }
 
 .horizontal-list li {
-    margin-right: 2.618rem; /* Adds space between items */
     margin-bottom: 0.816rem;
 }
 
