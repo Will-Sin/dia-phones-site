@@ -285,6 +285,10 @@ function shuffleImagesRepeatedly() {
     const finalShuffleInterval = 500; // Final shuffle interval in milliseconds
     const changePoint = Math.floor(totalShuffles * (0.6)); // Point at which to start changing the interval
 
+    // Pre-determine the final images at the START of animation
+    // This ensures consistent final images regardless of load timing
+    const finalImages = getRandomImages(imageNames, imgTags.length);
+
     // Preload all images to avoid delays
     const preloadImages = new Set();
     imageNames.forEach(image => {
@@ -306,7 +310,15 @@ function shuffleImagesRepeatedly() {
 
     // Function to perform a single shuffle
     function performShuffle() {
-        const randomImages = getRandomImages(imageNames, imgTags.length); // Get a new set of random images
+        // During shuffling, show random images (but NOT the final images yet)
+        let randomImages;
+        if (shuffleCount < totalShuffles - 1) {
+            // During animation, show random images
+            randomImages = getRandomImages(imageNames, imgTags.length);
+        } else {
+            // On the last shuffle, transition to the pre-determined final images
+            randomImages = finalImages;
+        }
 
         // Assign each random image to the corresponding img tag
         randomImages.forEach((image, index) => {
@@ -318,27 +330,16 @@ function shuffleImagesRepeatedly() {
 
         shuffleCount++; // Increment the shuffle counter
 
-        // Check if minimum animation is complete
+        // Check if animation is complete
         if (shuffleCount >= totalShuffles) {
-            // If page is fully loaded, finalize immediately
+            // Animation complete - final images are already displayed
+            // Now just wait for page to fully load before revealing content
             if (pageFullyLoaded) {
-                finalizeImages(imgTags);
+                finalizeImages(imgTags, finalImages);
             } else {
-                // Page not loaded yet - keep shuffling at final interval until it loads
-                pendingFinalize = () => finalizeImages(imgTags);
-                // Continue slow shuffling while waiting for page load
-                function keepShuffling() {
-                    if (!pageFullyLoaded) {
-                        const randomImages = getRandomImages(imageNames, imgTags.length);
-                        randomImages.forEach((image, index) => {
-                            if (imgTags[index]) {
-                                imgTags[index].src = folderPath + image;
-                            }
-                        });
-                        setTimeout(keepShuffling, finalShuffleInterval);
-                    }
-                }
-                keepShuffling();
+                // Page not loaded yet - wait without changing images
+                // The final images stay displayed while we wait
+                pendingFinalize = () => finalizeImages(imgTags, finalImages);
             }
         } else {
             // Schedule the next shuffle with the adjusted interval
@@ -351,16 +352,17 @@ function shuffleImagesRepeatedly() {
     performShuffle();
 }
 
-// Finalize the images by selecting a final random image for each img tag
-function finalizeImages(imgTags) {
-    const finalImages = getRandomImages(imageNames, imgTags.length); // Select the final set of random images
-
-    // Assign each final image to the corresponding img tag
-    finalImages.forEach((image, index) => {
-        if (imgTags[index]) { // Check if the img tag exists
-            imgTags[index].src = folderPath + image; // Set the src attribute to the final image
-        }
-    });
+// Finalize the images - uses pre-determined final images passed from shuffleImagesRepeatedly
+function finalizeImages(imgTags, finalImages) {
+    // Final images are already displayed from the last shuffle
+    // Just ensure they're set (in case this is called directly)
+    if (finalImages) {
+        finalImages.forEach((image, index) => {
+            if (imgTags[index]) {
+                imgTags[index].src = folderPath + image;
+            }
+        });
+    }
 
     // Create duplicates of the finalized images for the right half of the screen
     createDuplicateImages(imgTags, finalImages);
