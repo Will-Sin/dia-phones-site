@@ -279,7 +279,6 @@ document.addEventListener("DOMContentLoaded", function() {
 function shuffleImagesRepeatedly() {
     const imgTags = document.querySelectorAll('img.icon'); // Select all img tags with the class 'icon'
 
-    let shuffleCount = 0; // Counter to track the number of shuffles
     const totalShuffles = 20; // Total number of shuffles before finalizing
     const initialShuffleInterval = 50; // Initial shuffle interval in milliseconds
     const finalShuffleInterval = 500; // Final shuffle interval in milliseconds
@@ -289,12 +288,19 @@ function shuffleImagesRepeatedly() {
     // This ensures consistent final images regardless of load timing
     const finalImages = getRandomImages(imageNames, imgTags.length);
 
-    // Preload all images to avoid delays
-    const preloadImages = new Set();
-    imageNames.forEach(image => {
-        const img = new Image();
-        img.src = folderPath + image;
-        preloadImages.add(img);
+    // Preload all images and wait for them before starting animation
+    const preloadPromises = imageNames.map(image => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve; // Resolve even on error to not block animation
+            img.src = folderPath + image;
+        });
+    });
+
+    // Wait for all images to preload, then start the animation
+    Promise.all(preloadPromises).then(() => {
+        startShuffleAnimation();
     });
 
     // Function to calculate the current shuffle interval
@@ -308,48 +314,53 @@ function shuffleImagesRepeatedly() {
         }
     }
 
-    // Function to perform a single shuffle
-    function performShuffle() {
-        // During shuffling, show random images (but NOT the final images yet)
-        let randomImages;
-        if (shuffleCount < totalShuffles - 1) {
-            // During animation, show random images
-            randomImages = getRandomImages(imageNames, imgTags.length);
-        } else {
-            // On the last shuffle, transition to the pre-determined final images
-            randomImages = finalImages;
-        }
+    // Function to start the shuffle animation after images are preloaded
+    function startShuffleAnimation() {
+        let shuffleCount = 0; // Counter to track the number of shuffles
 
-        // Assign each random image to the corresponding img tag
-        randomImages.forEach((image, index) => {
-            if (imgTags[index]) { // Check if the img tag exists
-                imgTags[index].style.display = 'block'; // Make the image visible
-                imgTags[index].src = folderPath + image; // Set the src attribute to the random image
-            }
-        });
-
-        shuffleCount++; // Increment the shuffle counter
-
-        // Check if animation is complete
-        if (shuffleCount >= totalShuffles) {
-            // Animation complete - final images are already displayed
-            // Now just wait for page to fully load before revealing content
-            if (pageFullyLoaded) {
-                finalizeImages(imgTags, finalImages);
+        // Function to perform a single shuffle
+        function performShuffle() {
+            // During shuffling, show random images (but NOT the final images yet)
+            let randomImages;
+            if (shuffleCount < totalShuffles - 1) {
+                // During animation, show random images
+                randomImages = getRandomImages(imageNames, imgTags.length);
             } else {
-                // Page not loaded yet - wait without changing images
-                // The final images stay displayed while we wait
-                pendingFinalize = () => finalizeImages(imgTags, finalImages);
+                // On the last shuffle, transition to the pre-determined final images
+                randomImages = finalImages;
             }
-        } else {
-            // Schedule the next shuffle with the adjusted interval
-            const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
-            setTimeout(performShuffle, nextInterval);
-        }
-    }
 
-    // Start the shuffle process
-    performShuffle();
+            // Assign each random image to the corresponding img tag
+            randomImages.forEach((image, index) => {
+                if (imgTags[index]) { // Check if the img tag exists
+                    imgTags[index].style.display = 'block'; // Make the image visible
+                    imgTags[index].src = folderPath + image; // Set the src attribute to the random image
+                }
+            });
+
+            shuffleCount++; // Increment the shuffle counter
+
+            // Check if animation is complete
+            if (shuffleCount >= totalShuffles) {
+                // Animation complete - final images are already displayed
+                // Now just wait for page to fully load before revealing content
+                if (pageFullyLoaded) {
+                    finalizeImages(imgTags, finalImages);
+                } else {
+                    // Page not loaded yet - wait without changing images
+                    // The final images stay displayed while we wait
+                    pendingFinalize = () => finalizeImages(imgTags, finalImages);
+                }
+            } else {
+                // Schedule the next shuffle with the adjusted interval
+                const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
+                setTimeout(performShuffle, nextInterval);
+            }
+        }
+
+        // Start the shuffle process
+        performShuffle();
+    }
 }
 
 // Finalize the images - uses pre-determined final images passed from shuffleImagesRepeatedly
