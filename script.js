@@ -216,8 +216,8 @@ document.addEventListener("DOMContentLoaded", function () {
 const ARENA_CHANNEL_SLUG = 'dia-phone-site';
 const ARENA_API_URL = `https://api.are.na/v2/channels/${ARENA_CHANNEL_SLUG}/contents`;
 
-// Store image URLs fetched from Are.na
-let imageUrls = [];
+// Store image data fetched from Are.na (with multiple sizes)
+let imageData = [];
 
 // Fetch images from Are.na API
 async function fetchArenaImages() {
@@ -228,11 +228,16 @@ async function fetchArenaImages() {
         }
         const data = await response.json();
 
-        // Filter for image blocks and extract URLs
+        // Filter for image blocks and extract both thumbnail and large URLs
         const images = data.contents
             .filter(block => block.class === 'Image' && block.image)
-            .map(block => block.image.display?.url || block.image.large?.url || block.image.original?.url)
-            .filter(url => url); // Remove any undefined URLs
+            .map(block => ({
+                // Use square or thumb for small icons (faster loading during shuffle)
+                thumb: block.image.square?.url || block.image.thumb?.url || block.image.display?.url,
+                // Use display or large for the right-side duplicates
+                large: block.image.display?.url || block.image.large?.url || block.image.original?.url
+            }))
+            .filter(img => img.thumb && img.large); // Ensure both URLs exist
 
         return images;
     } catch (error) {
@@ -265,9 +270,9 @@ window.addEventListener('load', () => {
 // Start animation as soon as DOM is ready (much earlier than window.onload)
 document.addEventListener("DOMContentLoaded", async function() {
     // Fetch images from Are.na first
-    imageUrls = await fetchArenaImages();
+    imageData = await fetchArenaImages();
 
-    if (imageUrls.length === 0) {
+    if (imageData.length === 0) {
         console.warn('No images loaded from Are.na, icons will not display');
         // Still reveal the page content even if images fail
         document.querySelector('.body-div')?.classList.remove('preload');
@@ -289,19 +294,19 @@ function shuffleImagesRepeatedly() {
 
     // Pre-determine the final images at the START of animation
     // This ensures consistent final images regardless of load timing
-    const finalImages = getRandomImages(imageUrls, imgTags.length);
+    const finalImages = getRandomImages(imageData, imgTags.length);
 
-    // Preload all images and wait for them before starting animation
-    const preloadPromises = imageUrls.map(url => {
+    // Only preload thumbnails for faster initial load (used in shuffle animation)
+    const preloadPromises = imageData.map(img => {
         return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = resolve;
-            img.onerror = resolve; // Resolve even on error to not block animation
-            img.src = url;
+            const image = new Image();
+            image.onload = resolve;
+            image.onerror = resolve; // Resolve even on error to not block animation
+            image.src = img.thumb;
         });
     });
 
-    // Wait for all images to preload, then start the animation
+    // Wait for thumbnails to preload, then start the animation
     Promise.all(preloadPromises).then(() => {
         startShuffleAnimation();
     });
@@ -327,17 +332,17 @@ function shuffleImagesRepeatedly() {
             let randomImages;
             if (shuffleCount < totalShuffles - 1) {
                 // During animation, show random images
-                randomImages = getRandomImages(imageUrls, imgTags.length);
+                randomImages = getRandomImages(imageData, imgTags.length);
             } else {
                 // On the last shuffle, transition to the pre-determined final images
                 randomImages = finalImages;
             }
 
-            // Assign each random image to the corresponding img tag
-            randomImages.forEach((url, index) => {
+            // Assign each random image to the corresponding img tag (use thumbnails for performance)
+            randomImages.forEach((img, index) => {
                 if (imgTags[index]) { // Check if the img tag exists
                     imgTags[index].style.display = 'block'; // Make the image visible
-                    imgTags[index].src = url; // Set the src attribute to the Are.na image URL
+                    imgTags[index].src = img.thumb; // Use thumbnail for fast shuffle animation
                 }
             });
 
@@ -371,14 +376,14 @@ function finalizeImages(imgTags, finalImages) {
     // Final images are already displayed from the last shuffle
     // Just ensure they're set (in case this is called directly)
     if (finalImages) {
-        finalImages.forEach((url, index) => {
+        finalImages.forEach((img, index) => {
             if (imgTags[index]) {
-                imgTags[index].src = url;
+                imgTags[index].src = img.thumb; // Keep thumbnails for small icons
             }
         });
     }
 
-    // Create duplicates of the finalized images for the right half of the screen
+    // Create duplicates using larger images for the right half of the screen
     createDuplicateImages(imgTags, finalImages);
 
     // Trigger the rest of the page to load after final images are selected
@@ -420,9 +425,10 @@ function createDuplicateImages(originalImgTags, finalImages) {
     const imageHeight = viewportHeight / 3;
 
     // Create duplicates of the first 3 finalized images, stacked vertically edge-to-edge
-    for (let i = 0; i < Math.min(3, originalImgTags.length); i++) {
+    // Use larger images for better quality at this size
+    for (let i = 0; i < Math.min(3, finalImages.length); i++) {
         const duplicate = document.createElement('img');
-        duplicate.src = originalImgTags[i].src;
+        duplicate.src = finalImages[i].large; // Use large version for right-side duplicates
         duplicate.className = 'icon-duplicate';
         
         // Set the specified CSS properties with calculated height
