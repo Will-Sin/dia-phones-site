@@ -212,22 +212,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-// Define the folder path where the images are stored
-const folderPath = 'images/Icons/'; // Update this to your actual folder path
+// Are.na channel configuration
+const ARENA_CHANNEL_SLUG = 'dia-phone-site';
+const ARENA_API_URL = `https://api.are.na/v2/channels/${ARENA_CHANNEL_SLUG}/contents`;
 
-// Generate the image names dynamically based on the total number of images
-function generateImageNames(count) {
-    const imageNames = [];
-    // Loop from 1 to the specified count to generate image file names
-    for (let i = 1; i <= count; i++) {
-        imageNames.push(`image${i}.jpg`); // Create file names like image1.jpg, image2.jpg, etc.
+// Store image URLs fetched from Are.na
+let imageUrls = [];
+
+// Fetch images from Are.na API
+async function fetchArenaImages() {
+    try {
+        const response = await fetch(ARENA_API_URL);
+        if (!response.ok) {
+            throw new Error(`Are.na API error: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Filter for image blocks and extract URLs
+        const images = data.contents
+            .filter(block => block.class === 'Image' && block.image)
+            .map(block => block.image.display?.url || block.image.large?.url || block.image.original?.url)
+            .filter(url => url); // Remove any undefined URLs
+
+        return images;
+    } catch (error) {
+        console.error('Error fetching Are.na images:', error);
+        return [];
     }
-    return imageNames; // Return the array of generated image names
 }
-
-// Specify the total number of images available in the folder
-const totalImages = 65; // Update this number as needed to match the number of images in your folder
-const imageNames = generateImageNames(totalImages); // Generate the image name list
 
 // Function to randomly select n unique images from the provided image array
 function getRandomImages(imageArray, count) {
@@ -251,8 +263,18 @@ window.addEventListener('load', () => {
 });
 
 // Start animation as soon as DOM is ready (much earlier than window.onload)
-document.addEventListener("DOMContentLoaded", function() {
-    // Start the image shuffling process immediately
+document.addEventListener("DOMContentLoaded", async function() {
+    // Fetch images from Are.na first
+    imageUrls = await fetchArenaImages();
+
+    if (imageUrls.length === 0) {
+        console.warn('No images loaded from Are.na, icons will not display');
+        // Still reveal the page content even if images fail
+        document.querySelector('.body-div')?.classList.remove('preload');
+        return;
+    }
+
+    // Start the image shuffling process
     shuffleImagesRepeatedly();
 });
 
@@ -267,15 +289,15 @@ function shuffleImagesRepeatedly() {
 
     // Pre-determine the final images at the START of animation
     // This ensures consistent final images regardless of load timing
-    const finalImages = getRandomImages(imageNames, imgTags.length);
+    const finalImages = getRandomImages(imageUrls, imgTags.length);
 
     // Preload all images and wait for them before starting animation
-    const preloadPromises = imageNames.map(image => {
+    const preloadPromises = imageUrls.map(url => {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = resolve;
             img.onerror = resolve; // Resolve even on error to not block animation
-            img.src = folderPath + image;
+            img.src = url;
         });
     });
 
@@ -305,17 +327,17 @@ function shuffleImagesRepeatedly() {
             let randomImages;
             if (shuffleCount < totalShuffles - 1) {
                 // During animation, show random images
-                randomImages = getRandomImages(imageNames, imgTags.length);
+                randomImages = getRandomImages(imageUrls, imgTags.length);
             } else {
                 // On the last shuffle, transition to the pre-determined final images
                 randomImages = finalImages;
             }
 
             // Assign each random image to the corresponding img tag
-            randomImages.forEach((image, index) => {
+            randomImages.forEach((url, index) => {
                 if (imgTags[index]) { // Check if the img tag exists
                     imgTags[index].style.display = 'block'; // Make the image visible
-                    imgTags[index].src = folderPath + image; // Set the src attribute to the random image
+                    imgTags[index].src = url; // Set the src attribute to the Are.na image URL
                 }
             });
 
@@ -349,9 +371,9 @@ function finalizeImages(imgTags, finalImages) {
     // Final images are already displayed from the last shuffle
     // Just ensure they're set (in case this is called directly)
     if (finalImages) {
-        finalImages.forEach((image, index) => {
+        finalImages.forEach((url, index) => {
             if (imgTags[index]) {
-                imgTags[index].src = folderPath + image;
+                imgTags[index].src = url;
             }
         });
     }
