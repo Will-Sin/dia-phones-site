@@ -45,6 +45,7 @@ li {
 .background-full {
     position: fixed;
     height: 100vh;
+    z-index: -1; /* Ensure background icons stay behind all content */
 }
 
 
@@ -60,14 +61,14 @@ li {
     opacity: 1;
     transform: translateY(0);
     transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+    position: relative;
+    z-index: 1; /* Ensure body content appears above background icons */
 }
 
 .main-content {
     display: flex;
     flex-direction: column; /* Stack content vertically */
     min-height: 100vh; /* Ensure the wrapper takes up at least the viewport height */
-    position: relative;
-    z-index: 1; /* Ensure text content appears above background icons */
 }
 
 p {
