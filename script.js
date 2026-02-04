@@ -252,27 +252,8 @@ window.addEventListener('load', () => {
 
 // Start animation as soon as DOM is ready (much earlier than window.onload)
 document.addEventListener("DOMContentLoaded", function() {
-    // Function to calculate and fix the positions of the icon images
-    function fixIconPositions() {
-        const icons = document.querySelectorAll('img.icon');
-
-        icons.forEach(icon => {
-            const rect = icon.getBoundingClientRect();
-            const top = rect.top + window.scrollY;
-            const bottom = window.innerHeight - rect.bottom + window.scrollY;
-
-            // Set the fixed positions
-            icon.style.top = `${top}px`;
-            icon.style.bottom = 'auto'; // Ensure bottom is not set
-            icon.style.display = 'block'; // Make the image visible
-        });
-    }
-
     // Start the image shuffling process immediately
     shuffleImagesRepeatedly();
-
-    // Fix the positions of the icon images after shuffling completes
-    setTimeout(fixIconPositions, 1000);
 });
 
 // Function to simulate image shuffling multiple times before finalizing

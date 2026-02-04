@@ -103,6 +103,14 @@ a:hover {
     z-index: 0; /* Above html/body background but below content */
     display: none;
     transition: top 0.5s ease-in-out, bottom 0.5s ease-in-out; /* Add transition for top and bottom properties */
+    border: none; /* Remove default border for images without src */
+    outline: none;
+}
+
+/* Hide img placeholder when no src is set */
+.icon:not([src]),
+.icon[src=""] {
+    visibility: hidden;
 }
 
 .icon-image-one {
