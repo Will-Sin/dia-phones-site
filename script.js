@@ -236,7 +236,22 @@ function getRandomImages(imageArray, count) {
     return shuffled.slice(0, count); // Return the selected images
 }
 
-window.onload = () => {
+// Track page load state
+let pageFullyLoaded = false;
+let pendingFinalize = null;
+
+// Mark page as fully loaded when all resources are ready
+window.addEventListener('load', () => {
+    pageFullyLoaded = true;
+    // If animation was waiting to finish, finalize now
+    if (pendingFinalize) {
+        pendingFinalize();
+        pendingFinalize = null;
+    }
+});
+
+// Start animation as soon as DOM is ready (much earlier than window.onload)
+document.addEventListener("DOMContentLoaded", function() {
     // Function to calculate and fix the positions of the icon images
     function fixIconPositions() {
         const icons = document.querySelectorAll('img.icon');
@@ -253,12 +268,12 @@ window.onload = () => {
         });
     }
 
-    // Start the image shuffling process
+    // Start the image shuffling process immediately
     shuffleImagesRepeatedly();
 
-    // Fix the positions of the icon images after shuffling
-    setTimeout(fixIconPositions, 1000); // Adjust the timeout as needed
-};
+    // Fix the positions of the icon images after shuffling completes
+    setTimeout(fixIconPositions, 1000);
+});
 
 // Function to simulate image shuffling multiple times before finalizing
 function shuffleImagesRepeatedly() {
@@ -302,8 +317,29 @@ function shuffleImagesRepeatedly() {
         });
 
         shuffleCount++; // Increment the shuffle counter
+
+        // Check if minimum animation is complete
         if (shuffleCount >= totalShuffles) {
-            finalizeImages(imgTags); // Call the function to finalize the images
+            // If page is fully loaded, finalize immediately
+            if (pageFullyLoaded) {
+                finalizeImages(imgTags);
+            } else {
+                // Page not loaded yet - keep shuffling at final interval until it loads
+                pendingFinalize = () => finalizeImages(imgTags);
+                // Continue slow shuffling while waiting for page load
+                function keepShuffling() {
+                    if (!pageFullyLoaded) {
+                        const randomImages = getRandomImages(imageNames, imgTags.length);
+                        randomImages.forEach((image, index) => {
+                            if (imgTags[index]) {
+                                imgTags[index].src = folderPath + image;
+                            }
+                        });
+                        setTimeout(keepShuffling, finalShuffleInterval);
+                    }
+                }
+                keepShuffling();
+            }
         } else {
             // Schedule the next shuffle with the adjusted interval
             const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
