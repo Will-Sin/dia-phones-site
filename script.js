@@ -214,22 +214,38 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Are.na channel configuration
 const ARENA_CHANNEL_SLUG = 'dia-phone-site';
-const ARENA_API_URL = `https://api.are.na/v2/channels/${ARENA_CHANNEL_SLUG}/contents`;
+const ARENA_API_BASE = `https://api.are.na/v2/channels/${ARENA_CHANNEL_SLUG}`;
 
 // Store image data fetched from Are.na (with multiple sizes)
 let imageData = [];
 
-// Fetch images from Are.na API
+// Fetch all images from Are.na API (handles pagination)
 async function fetchArenaImages() {
     try {
-        const response = await fetch(ARENA_API_URL);
-        if (!response.ok) {
-            throw new Error(`Are.na API error: ${response.status}`);
+        // First, get channel info to know total content count
+        const channelResponse = await fetch(ARENA_API_BASE);
+        if (!channelResponse.ok) {
+            throw new Error(`Are.na API error: ${channelResponse.status}`);
         }
-        const data = await response.json();
+        const channelData = await channelResponse.json();
+        const totalCount = channelData.length; // Total number of blocks in channel
+
+        // Fetch all pages (100 items per page is the max)
+        const perPage = 100;
+        const totalPages = Math.ceil(totalCount / perPage);
+        const allContents = [];
+
+        for (let page = 1; page <= totalPages; page++) {
+            const response = await fetch(`${ARENA_API_BASE}/contents?per=${perPage}&page=${page}`);
+            if (!response.ok) {
+                throw new Error(`Are.na API error: ${response.status}`);
+            }
+            const data = await response.json();
+            allContents.push(...data.contents);
+        }
 
         // Filter for image blocks and extract both thumbnail and large URLs
-        const images = data.contents
+        const images = allContents
             .filter(block => block.class === 'Image' && block.image)
             .map(block => ({
                 // Use square or thumb for small icons (faster loading during shuffle)
@@ -239,6 +255,7 @@ async function fetchArenaImages() {
             }))
             .filter(img => img.thumb && img.large); // Ensure both URLs exist
 
+        console.log(`Loaded ${images.length} images from Are.na`);
         return images;
     } catch (error) {
         console.error('Error fetching Are.na images:', error);
