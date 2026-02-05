@@ -367,15 +367,15 @@ function finalizeImages(imgTags, finalImages) {
 function createDuplicateImages(originalImgTags, finalImages) {
     // Find the background-full container
     const backgroundFull = document.querySelector('.background-full');
-    
+
     if (!backgroundFull) {
         console.error('Could not find .background-full container');
         return;
     }
-    
+
     // Create or select a container for the duplicated images
     let duplicateContainer = document.getElementById('duplicate-image-container');
-    
+
     if (!duplicateContainer) {
         duplicateContainer = document.createElement('div');
         duplicateContainer.id = 'duplicate-image-container';
@@ -387,28 +387,37 @@ function createDuplicateImages(originalImgTags, finalImages) {
         duplicateContainer.style.overflow = 'hidden';
         duplicateContainer.style.pointerEvents = 'none';
         duplicateContainer.style.zIndex = '-2';
+        duplicateContainer.style.display = 'flex';
+        duplicateContainer.style.flexWrap = 'wrap';
+        duplicateContainer.style.alignContent = 'flex-start';
         backgroundFull.appendChild(duplicateContainer);
     }
 
     // Clear any existing duplicates
     duplicateContainer.innerHTML = '';
 
-    // Calculate the height for each image to fill the entire viewport evenly
-    const viewportHeight = window.innerHeight;
-    const imageHeight = viewportHeight / 3;
+    // Use square images - calculate size based on fitting a grid
+    const containerWidth = window.innerWidth * 0.5; // 50% of viewport width
+    const imageSize = 150; // Square size for each image
+    const imagesPerRow = Math.floor(containerWidth / imageSize);
+    const rowsNeeded = Math.ceil(window.innerHeight / imageSize);
+    const totalImagesToShow = imagesPerRow * rowsNeeded;
 
-    // Create duplicates of the first 3 finalized images, stacked vertically edge-to-edge
-    for (let i = 0; i < Math.min(3, originalImgTags.length); i++) {
+    // Get random images from all available images (not just the 3 shown as icons)
+    const randomImages = getRandomImages(imageNames, Math.min(totalImagesToShow, imageNames.length));
+
+    // Create grid of square duplicate images
+    for (let i = 0; i < randomImages.length; i++) {
         const duplicate = document.createElement('img');
-        duplicate.src = originalImgTags[i].src;
+        duplicate.src = folderPath + randomImages[i];
         duplicate.className = 'icon-duplicate';
-        
-        // Set the specified CSS properties with calculated height
-        duplicate.style.width = '700px';
-        duplicate.style.height = `${imageHeight}px`;
+
+        // Set square dimensions - images will stretch to fill
+        duplicate.style.width = `${imageSize}px`;
+        duplicate.style.height = `${imageSize}px`;
         duplicate.style.display = 'block';
         duplicate.style.opacity = '0.3';
-        
+
         duplicateContainer.appendChild(duplicate);
     }
 }
