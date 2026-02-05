@@ -212,22 +212,54 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-// Define the folder path where the images are stored
-const folderPath = 'images/Icons/'; // Update this to your actual folder path
+// Are.na API configuration
+const ARENA_CHANNEL_SLUG = 'dia-phone-site';
+const ARENA_API_BASE = `https://api.are.na/v2/channels/${ARENA_CHANNEL_SLUG}`;
+let imageData = [];
 
-// Generate the image names dynamically based on the total number of images
-function generateImageNames(count) {
-    const imageNames = [];
-    // Loop from 1 to the specified count to generate image file names
-    for (let i = 1; i <= count; i++) {
-        imageNames.push(`image${i}.jpg`); // Create file names like image1.jpg, image2.jpg, etc.
+// Fetch images from Are.na channel with pagination
+async function fetchArenaImages() {
+    const images = [];
+    let page = 1;
+    const perPage = 100;
+    let totalPages = 1;
+
+    try {
+        // First, get channel info to know total content count
+        const channelResponse = await fetch(`${ARENA_API_BASE}?per=1`);
+        if (!channelResponse.ok) throw new Error('Failed to fetch channel info');
+        const channelData = await channelResponse.json();
+        const totalContents = channelData.length;
+        totalPages = Math.ceil(totalContents / perPage);
+        console.log(`Are.na channel has ${totalContents} items, fetching ${totalPages} page(s)`);
+
+        // Fetch all pages
+        while (page <= totalPages) {
+            const response = await fetch(`${ARENA_API_BASE}/contents?per=${perPage}&page=${page}`);
+            if (!response.ok) throw new Error(`Failed to fetch page ${page}`);
+            const data = await response.json();
+
+            // Filter for image blocks and extract URLs
+            const imageBlocks = data.contents.filter(block => block.class === 'Image');
+            imageBlocks.forEach(block => {
+                const thumb = block.image?.square?.url || block.image?.thumb?.url || block.image?.display?.url;
+                const large = block.image?.large?.url || block.image?.display?.url || block.image?.original?.url;
+                if (thumb && large) {
+                    images.push({ thumb, large });
+                }
+            });
+
+            console.log(`Fetched page ${page}/${totalPages}: ${imageBlocks.length} images`);
+            page++;
+        }
+
+        console.log(`Total images fetched from Are.na: ${images.length}`);
+        return images;
+    } catch (error) {
+        console.error('Error fetching Are.na images:', error);
+        return [];
     }
-    return imageNames; // Return the array of generated image names
 }
-
-// Specify the total number of images available in the folder
-const totalImages = 65; // Update this number as needed to match the number of images in your folder
-const imageNames = generateImageNames(totalImages); // Generate the image name list
 
 // Function to randomly select n unique images from the provided image array
 function getRandomImages(imageArray, count) {
@@ -251,8 +283,18 @@ window.addEventListener('load', () => {
 });
 
 // Start animation as soon as DOM is ready (much earlier than window.onload)
-document.addEventListener("DOMContentLoaded", function() {
-    // Start the image shuffling process immediately
+document.addEventListener("DOMContentLoaded", async function() {
+    // Fetch images from Are.na before starting animation
+    imageData = await fetchArenaImages();
+
+    if (imageData.length === 0) {
+        console.error('No images fetched from Are.na, cannot start animation');
+        // Still reveal the page even if images failed to load
+        document.querySelector('.body-div').classList.remove('preload');
+        return;
+    }
+
+    // Start the image shuffling process
     shuffleImagesRepeatedly();
 });
 
@@ -267,15 +309,15 @@ function shuffleImagesRepeatedly() {
 
     // Pre-determine the final images at the START of animation
     // This ensures consistent final images regardless of load timing
-    const finalImages = getRandomImages(imageNames, imgTags.length);
+    const finalImages = getRandomImages(imageData, imgTags.length);
 
-    // Preload all images and wait for them before starting animation
-    const preloadPromises = imageNames.map(image => {
+    // Preload thumbnail images and wait for them before starting animation
+    const preloadPromises = imageData.map(img => {
         return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = resolve;
-            img.onerror = resolve; // Resolve even on error to not block animation
-            img.src = folderPath + image;
+            const image = new Image();
+            image.onload = resolve;
+            image.onerror = resolve; // Resolve even on error to not block animation
+            image.src = img.thumb;
         });
     });
 
@@ -305,17 +347,17 @@ function shuffleImagesRepeatedly() {
             let randomImages;
             if (shuffleCount < totalShuffles - 1) {
                 // During animation, show random images
-                randomImages = getRandomImages(imageNames, imgTags.length);
+                randomImages = getRandomImages(imageData, imgTags.length);
             } else {
                 // On the last shuffle, transition to the pre-determined final images
                 randomImages = finalImages;
             }
 
             // Assign each random image to the corresponding img tag
-            randomImages.forEach((image, index) => {
+            randomImages.forEach((img, index) => {
                 if (imgTags[index]) { // Check if the img tag exists
                     imgTags[index].style.display = 'block'; // Make the image visible
-                    imgTags[index].src = folderPath + image; // Set the src attribute to the random image
+                    imgTags[index].src = img.thumb; // Set the src attribute to the thumbnail image
                 }
             });
 
@@ -349,9 +391,9 @@ function finalizeImages(imgTags, finalImages) {
     // Final images are already displayed from the last shuffle
     // Just ensure they're set (in case this is called directly)
     if (finalImages) {
-        finalImages.forEach((image, index) => {
+        finalImages.forEach((img, index) => {
             if (imgTags[index]) {
-                imgTags[index].src = folderPath + image;
+                imgTags[index].src = img.thumb;
             }
         });
     }
@@ -398,17 +440,18 @@ function createDuplicateImages(originalImgTags, finalImages) {
     const imageHeight = viewportHeight / 3;
 
     // Create duplicates of the first 3 finalized images, stacked vertically edge-to-edge
-    for (let i = 0; i < Math.min(3, originalImgTags.length); i++) {
+    for (let i = 0; i < Math.min(3, finalImages.length); i++) {
         const duplicate = document.createElement('img');
-        duplicate.src = originalImgTags[i].src;
+        // Use larger image URL for the duplicate display
+        duplicate.src = finalImages[i].large;
         duplicate.className = 'icon-duplicate';
-        
+
         // Set the specified CSS properties with calculated height
         duplicate.style.width = '700px';
         duplicate.style.height = `${imageHeight}px`;
         duplicate.style.display = 'block';
         duplicate.style.opacity = '0.3';
-        
+
         duplicateContainer.appendChild(duplicate);
     }
 }
