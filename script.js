@@ -222,7 +222,6 @@ async function fetchArenaImages() {
     const images = [];
     let page = 1;
     const perPage = 100;
-    let totalPages = 1;
 
     try {
         // First, get channel info to know total content count
@@ -230,14 +229,21 @@ async function fetchArenaImages() {
         if (!channelResponse.ok) throw new Error('Failed to fetch channel info');
         const channelData = await channelResponse.json();
         const totalContents = channelData.length;
-        totalPages = Math.ceil(totalContents / perPage);
-        console.log(`Are.na channel has ${totalContents} items, fetching ${totalPages} page(s)`);
+        const totalPages = Math.ceil(totalContents / perPage);
+        console.log(`Are.na channel has ${totalContents} items, fetching up to ${totalPages} page(s)`);
 
-        // Fetch all pages
-        while (page <= totalPages) {
+        // Fetch all pages until we've got everything
+        let hasMorePages = true;
+        while (hasMorePages && page <= totalPages) {
             const response = await fetch(`${ARENA_API_BASE}/contents?per=${perPage}&page=${page}`);
             if (!response.ok) throw new Error(`Failed to fetch page ${page}`);
             const data = await response.json();
+
+            // Check if we received any contents
+            if (!data.contents || data.contents.length === 0) {
+                hasMorePages = false;
+                break;
+            }
 
             // Filter for image blocks and extract URLs
             const imageBlocks = data.contents.filter(block => block.class === 'Image');
@@ -249,7 +255,13 @@ async function fetchArenaImages() {
                 }
             });
 
-            console.log(`Fetched page ${page}/${totalPages}: ${imageBlocks.length} images`);
+            console.log(`Fetched page ${page}/${totalPages}: ${data.contents.length} items, ${imageBlocks.length} images`);
+
+            // If we received fewer items than requested, we've reached the end
+            if (data.contents.length < perPage) {
+                hasMorePages = false;
+            }
+
             page++;
         }
 
