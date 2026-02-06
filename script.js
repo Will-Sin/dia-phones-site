@@ -212,8 +212,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-// Define the folder path where the images are stored
+// Define the folder paths where the images are stored
 const folderPath = 'images/Icons/';
+const originalsFolderPath = 'images/Icons/originals/';
 
 // Image names will be loaded from manifest (populated by GitHub Action from Are.na)
 let imageNames = [];
@@ -412,9 +413,10 @@ function createDuplicateImages(originalImgTags, finalImages) {
     const imageHeight = viewportHeight / 3;
 
     // Create duplicates of the first 3 finalized images, stacked vertically edge-to-edge
+    // Use original (full-resolution) images for high-quality display at large sizes
     for (let i = 0; i < Math.min(3, originalImgTags.length); i++) {
         const duplicate = document.createElement('img');
-        duplicate.src = originalImgTags[i].src;
+        duplicate.src = originalsFolderPath + finalImages[i];
         duplicate.className = 'icon-duplicate';
         
         // Set the specified CSS properties with calculated height

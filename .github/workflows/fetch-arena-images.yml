@@ -31,9 +31,11 @@ jobs:
 
           CHANNEL_SLUG="dia-phone-slot-machine"
           OUTPUT_DIR="images/Icons"
+          ORIGINALS_DIR="images/Icons/originals"
           MAX_WIDTH=150  # 2x retina for 70px display
 
           mkdir -p "$OUTPUT_DIR"
+          mkdir -p "$ORIGINALS_DIR"
 
           echo "Fetching channel contents from Are.na..."
 
@@ -77,6 +79,7 @@ jobs:
 
           # Clear old images
           rm -f "$OUTPUT_DIR"/image*.jpg
+          rm -f "$ORIGINALS_DIR"/image*.jpg
 
           # Download and resize each image
           INDEX=1
@@ -109,6 +112,19 @@ jobs:
               TYPED_TMP="${OUTFILE}.tmp.${EXT}"
               mv "$TMPFILE" "$TYPED_TMP"
 
+              ORIG_OUTFILE="$ORIGINALS_DIR/image${INDEX}.jpg"
+
+              # Save original-quality version (for high-res side display)
+              # Convert to JPEG but keep full resolution
+              if convert "${TYPED_TMP}[0]" \
+                -quality 90 \
+                -strip \
+                "$ORIG_OUTFILE"; then
+                echo "Saved original image ${INDEX} (${EXT})"
+              else
+                echo "Warning: Failed to save original image ${INDEX} (${MIME})"
+              fi
+
               # Resize to max width, preserving aspect ratio, compress as JPEG
               # Use [0] to take only the first frame from animated formats (GIF, APNG)
               if convert "${TYPED_TMP}[0]" \
@@ -120,7 +136,7 @@ jobs:
                 INDEX=$((INDEX + 1))
               else
                 echo "Warning: Failed to convert image ${INDEX} (${MIME}), skipping"
-                rm -f "$OUTFILE"
+                rm -f "$OUTFILE" "$ORIG_OUTFILE"
               fi
 
               rm -f "$TYPED_TMP"
@@ -135,7 +151,7 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          git add images/Icons/
+          git add images/Icons/ images/Icons/originals/
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
