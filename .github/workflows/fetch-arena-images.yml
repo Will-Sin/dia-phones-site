@@ -87,7 +87,7 @@ jobs:
               curl -sf "$URL" -o "${OUTFILE}.tmp"
 
               # Resize to max width, preserving aspect ratio, compress as JPEG
-              magick "${OUTFILE}.tmp" \
+              convert "${OUTFILE}.tmp" \
                 -resize "${MAX_WIDTH}>" \
                 -quality 80 \
                 -strip \
