@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", async function() {
 function shuffleImagesRepeatedly() {
     const imgTags = document.querySelectorAll('img.icon'); // Select all img tags with the class 'icon'
 
-    const totalShuffles = 20; // Total number of shuffles before finalizing
+    const totalShuffles = 40; // Total number of shuffles before finalizing
     const initialShuffleInterval = 50; // Initial shuffle interval in milliseconds
     const finalShuffleInterval = 500; // Final shuffle interval in milliseconds
     const changePoint = Math.floor(totalShuffles * (0.6)); // Point at which to start changing the interval
@@ -418,7 +418,7 @@ function createDuplicateImages(originalImgTags, finalImages) {
         duplicate.className = 'icon-duplicate';
         
         // Set the specified CSS properties with calculated height
-        duplicate.style.width = '700px';
+        duplicate.style.width = '100%';
         duplicate.style.height = `${imageHeight}px`;
         duplicate.style.display = 'block';
         duplicate.style.opacity = '0.3';
