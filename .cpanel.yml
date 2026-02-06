@@ -1,7 +1,6 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/diapgrgi/public_html
-    - /bin/cp -r * $DEPLOYPATH
-    - /bin/cp .htaccess $DEPLOYPATH/
-    - /bin/cp -r .well-known $DEPLOYPATH/
+    - /bin/cp -r * /home/diapgrgi/public_html/
+    - /bin/cp .htaccess /home/diapgrgi/public_html/
+    - /bin/cp -r .well-known /home/diapgrgi/public_html/
