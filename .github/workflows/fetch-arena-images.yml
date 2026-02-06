@@ -23,11 +23,7 @@ jobs:
 
       - name: Ensure ImageMagick is available
         run: |
-          if ! command -v convert &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y imagemagick
-          else
-            echo "ImageMagick already installed"
-          fi
+          sudo apt-get update && sudo apt-get install -y imagemagick webp libwebp-dev
 
       - name: Fetch and process Are.na images
         run: |
@@ -88,16 +84,31 @@ jobs:
             if [ -n "$URL" ]; then
               OUTFILE="$OUTPUT_DIR/image${INDEX}.jpg"
               echo "Downloading image ${INDEX}/${COUNT}..."
-              curl -sf "$URL" -o "${OUTFILE}.tmp"
+              TMPFILE="${OUTFILE}.download"
+              curl -sf "$URL" -o "$TMPFILE"
+
+              # Detect actual image format and rename so ImageMagick can identify it
+              MIME=$(file --mime-type -b "$TMPFILE")
+              case "$MIME" in
+                image/jpeg) EXT="jpg" ;;
+                image/png)  EXT="png" ;;
+                image/webp) EXT="webp" ;;
+                image/gif)  EXT="gif" ;;
+                image/tiff) EXT="tiff" ;;
+                *) echo "Skipping image ${INDEX}: unsupported format ${MIME}"; rm -f "$TMPFILE"; continue ;;
+              esac
+
+              TYPED_TMP="${OUTFILE}.tmp.${EXT}"
+              mv "$TMPFILE" "$TYPED_TMP"
 
               # Resize to max width, preserving aspect ratio, compress as JPEG
-              convert "${OUTFILE}.tmp" \
+              convert "$TYPED_TMP" \
                 -resize "${MAX_WIDTH}>" \
                 -quality 80 \
                 -strip \
                 "$OUTFILE"
 
-              rm -f "${OUTFILE}.tmp"
+              rm -f "$TYPED_TMP"
               INDEX=$((INDEX + 1))
             fi
           done <<< "$ALL_URLS"
