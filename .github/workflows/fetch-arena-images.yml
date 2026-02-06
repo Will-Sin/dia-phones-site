@@ -4,6 +4,12 @@ on:
   schedule:
     # Run every night at 3am UTC
     - cron: '0 3 * * *'
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - '.github/workflows/fetch-arena-images.yml'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -15,6 +21,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
 
       - name: Fetch and process Are.na images
         run: |
@@ -69,16 +78,16 @@ jobs:
           # Clear old images
           rm -f "$OUTPUT_DIR"/image*.jpg
 
-          # Download and resize each image
+          # Download and resize each image using heredoc to preserve INDEX
           INDEX=1
-          echo "$ALL_URLS" | while IFS= read -r URL; do
+          while IFS= read -r URL; do
             if [ -n "$URL" ]; then
               OUTFILE="$OUTPUT_DIR/image${INDEX}.jpg"
               echo "Downloading image ${INDEX}/${COUNT}..."
               curl -sf "$URL" -o "${OUTFILE}.tmp"
 
               # Resize to max width, preserving aspect ratio, compress as JPEG
-              convert "${OUTFILE}.tmp" \
+              magick "${OUTFILE}.tmp" \
                 -resize "${MAX_WIDTH}>" \
                 -quality 80 \
                 -strip \
@@ -87,7 +96,7 @@ jobs:
               rm -f "${OUTFILE}.tmp"
               INDEX=$((INDEX + 1))
             fi
-          done
+          done <<< "$ALL_URLS"
 
           # Write the count so script.js can pick it up
           FINAL_COUNT=$(ls "$OUTPUT_DIR"/image*.jpg 2>/dev/null | wc -l)
