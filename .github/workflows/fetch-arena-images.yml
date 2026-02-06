@@ -1,0 +1,113 @@
+name: Fetch Are.na Images
+
+on:
+  schedule:
+    # Run every night at 3am UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch and process Are.na images
+        run: |
+          set -e
+
+          CHANNEL_SLUG="dia-phone-slot-machine"
+          OUTPUT_DIR="images/Icons"
+          MAX_WIDTH=150  # 2x retina for 70px display
+
+          mkdir -p "$OUTPUT_DIR"
+
+          echo "Fetching channel contents from Are.na..."
+
+          # Are.na API paginates, fetch all pages
+          PAGE=1
+          PER=100
+          ALL_URLS=""
+
+          while true; do
+            RESPONSE=$(curl -sf "https://api.are.na/v2/channels/${CHANNEL_SLUG}/contents?page=${PAGE}&per=${PER}")
+
+            # Extract display image URLs (preserves aspect ratio, ~800px)
+            URLS=$(echo "$RESPONSE" | jq -r '.contents[]? | select(.class == "Image") | .image.display.url // empty')
+
+            if [ -z "$URLS" ]; then
+              break
+            fi
+
+            ALL_URLS="${ALL_URLS}${URLS}"$'\n'
+
+            # Check if there are more pages
+            TOTAL=$(echo "$RESPONSE" | jq -r '.length // 0')
+            FETCHED=$((PAGE * PER))
+            if [ "$FETCHED" -ge "$TOTAL" ]; then
+              break
+            fi
+
+            PAGE=$((PAGE + 1))
+          done
+
+          # Remove empty lines
+          ALL_URLS=$(echo "$ALL_URLS" | sed '/^$/d')
+
+          if [ -z "$ALL_URLS" ]; then
+            echo "No images found in channel. Exiting."
+            exit 1
+          fi
+
+          COUNT=$(echo "$ALL_URLS" | wc -l)
+          echo "Found $COUNT images"
+
+          # Clear old images
+          rm -f "$OUTPUT_DIR"/image*.jpg
+
+          # Download and resize each image
+          INDEX=1
+          echo "$ALL_URLS" | while IFS= read -r URL; do
+            if [ -n "$URL" ]; then
+              OUTFILE="$OUTPUT_DIR/image${INDEX}.jpg"
+              echo "Downloading image ${INDEX}/${COUNT}..."
+              curl -sf "$URL" -o "${OUTFILE}.tmp"
+
+              # Resize to max width, preserving aspect ratio, compress as JPEG
+              convert "${OUTFILE}.tmp" \
+                -resize "${MAX_WIDTH}>" \
+                -quality 80 \
+                -strip \
+                "$OUTFILE"
+
+              rm -f "${OUTFILE}.tmp"
+              INDEX=$((INDEX + 1))
+            fi
+          done
+
+          # Write the count so script.js can pick it up
+          FINAL_COUNT=$(ls "$OUTPUT_DIR"/image*.jpg 2>/dev/null | wc -l)
+          echo "{\"count\": ${FINAL_COUNT}}" > "$OUTPUT_DIR/manifest.json"
+          echo "Processed $FINAL_COUNT images"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add images/Icons/
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update icons from Are.na channel"
+          git push

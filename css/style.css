@@ -100,6 +100,7 @@ a:hover {
     text-align: center;
     width: 70px;
     height: auto;
+    object-fit: contain;
     z-index: 0; /* Above html/body background but below content */
     display: none;
     transition: top 0.5s ease-in-out, bottom 0.5s ease-in-out; /* Add transition for top and bottom properties */
