@@ -23,7 +23,7 @@ jobs:
 
       - name: Ensure ImageMagick is available
         run: |
-          sudo apt-get update && sudo apt-get install -y imagemagick webp libwebp-dev
+          sudo apt-get update && sudo apt-get install -y imagemagick webp libwebp-dev libheif-dev libraw-dev librsvg2-bin
 
       - name: Fetch and process Are.na images
         run: |
@@ -87,29 +87,43 @@ jobs:
               TMPFILE="${OUTFILE}.download"
               curl -sf "$URL" -o "$TMPFILE"
 
-              # Detect actual image format and rename so ImageMagick can identify it
+              # Detect actual image format from file contents and use correct extension
+              # so ImageMagick can identify the decoder to use
               MIME=$(file --mime-type -b "$TMPFILE")
-              case "$MIME" in
-                image/jpeg) EXT="jpg" ;;
-                image/png)  EXT="png" ;;
-                image/webp) EXT="webp" ;;
-                image/gif)  EXT="gif" ;;
-                image/tiff) EXT="tiff" ;;
-                *) echo "Skipping image ${INDEX}: unsupported format ${MIME}"; rm -f "$TMPFILE"; continue ;;
+              EXT="${MIME#image/}"
+
+              if [ "$MIME" = "$EXT" ] || [ -z "$EXT" ]; then
+                echo "Skipping image ${INDEX}: not an image (${MIME})"
+                rm -f "$TMPFILE"
+                continue
+              fi
+
+              # Normalize common MIME subtypes to file extensions
+              case "$EXT" in
+                jpeg)      EXT="jpg" ;;
+                svg+xml)   EXT="svg" ;;
+                x-icon)    EXT="ico" ;;
+                vnd.microsoft.icon) EXT="ico" ;;
               esac
 
               TYPED_TMP="${OUTFILE}.tmp.${EXT}"
               mv "$TMPFILE" "$TYPED_TMP"
 
               # Resize to max width, preserving aspect ratio, compress as JPEG
-              convert "$TYPED_TMP" \
+              # Use [0] to take only the first frame from animated formats (GIF, APNG)
+              if convert "${TYPED_TMP}[0]" \
                 -resize "${MAX_WIDTH}>" \
                 -quality 80 \
                 -strip \
-                "$OUTFILE"
+                "$OUTFILE"; then
+                echo "Converted image ${INDEX} (${EXT})"
+                INDEX=$((INDEX + 1))
+              else
+                echo "Warning: Failed to convert image ${INDEX} (${MIME}), skipping"
+                rm -f "$OUTFILE"
+              fi
 
               rm -f "$TYPED_TMP"
-              INDEX=$((INDEX + 1))
             fi
           done <<< "$ALL_URLS"
 
