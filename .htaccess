@@ -3,3 +3,7 @@ Options -Indexes
 
 # Ensure index.html is served as the default document
 DirectoryIndex index.html
+
+# Fallback: redirect root to index.html if DirectoryIndex fails
+RewriteEngine On
+RewriteRule ^$ /index.html [L]
