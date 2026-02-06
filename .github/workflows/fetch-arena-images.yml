@@ -21,12 +21,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch Are.na images
+      - name: Ensure ImageMagick is available
+        run: |
+          if ! command -v convert &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y imagemagick
+          else
+            echo "ImageMagick already installed"
+          fi
+
+      - name: Fetch and process Are.na images
         run: |
           set -e
 
           CHANNEL_SLUG="dia-phone-slot-machine"
           OUTPUT_DIR="images/Icons"
+          MAX_WIDTH=150  # 2x retina for 70px display
 
           mkdir -p "$OUTPUT_DIR"
 
@@ -40,8 +49,8 @@ jobs:
           while true; do
             RESPONSE=$(curl -sf "https://api.are.na/v2/channels/${CHANNEL_SLUG}/contents?page=${PAGE}&per=${PER}")
 
-            # Use thumb URLs (~200px, close to 150px retina target)
-            URLS=$(echo "$RESPONSE" | jq -r '.contents[]? | select(.class == "Image") | .image.thumb.url // empty')
+            # Extract display image URLs (preserves aspect ratio, ~800px)
+            URLS=$(echo "$RESPONSE" | jq -r '.contents[]? | select(.class == "Image") | .image.display.url // empty')
 
             if [ -z "$URLS" ]; then
               break
@@ -73,12 +82,22 @@ jobs:
           # Clear old images
           rm -f "$OUTPUT_DIR"/image*.jpg
 
-          # Download each image directly
+          # Download and resize each image
           INDEX=1
           while IFS= read -r URL; do
             if [ -n "$URL" ]; then
+              OUTFILE="$OUTPUT_DIR/image${INDEX}.jpg"
               echo "Downloading image ${INDEX}/${COUNT}..."
-              curl -sf "$URL" -o "$OUTPUT_DIR/image${INDEX}.jpg"
+              curl -sf "$URL" -o "${OUTFILE}.tmp"
+
+              # Resize to max width, preserving aspect ratio, compress as JPEG
+              convert "${OUTFILE}.tmp" \
+                -resize "${MAX_WIDTH}>" \
+                -quality 80 \
+                -strip \
+                "$OUTFILE"
+
+              rm -f "${OUTFILE}.tmp"
               INDEX=$((INDEX + 1))
             fi
           done <<< "$ALL_URLS"
@@ -86,7 +105,7 @@ jobs:
           # Write the count so script.js can pick it up
           FINAL_COUNT=$(ls "$OUTPUT_DIR"/image*.jpg 2>/dev/null | wc -l)
           echo "{\"count\": ${FINAL_COUNT}}" > "$OUTPUT_DIR/manifest.json"
-          echo "Downloaded $FINAL_COUNT images"
+          echo "Processed $FINAL_COUNT images"
 
       - name: Check for changes
         id: changes
