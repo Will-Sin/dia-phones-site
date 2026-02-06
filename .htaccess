@@ -1,0 +1,5 @@
+# Disable directory listing
+Options -Indexes
+
+# Ensure index.html is served as the default document
+DirectoryIndex index.html
