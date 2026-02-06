@@ -6,7 +6,7 @@ on:
     - cron: '0 3 * * *'
   push:
     branches:
-      - main
+      - master
     paths:
       - '.github/workflows/fetch-arena-images.yml'
   workflow_dispatch: # Allow manual trigger
@@ -123,5 +123,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "Update icons from Are.na channel"
-          git pull --rebase
+          git pull --rebase origin master
           git push
