@@ -236,10 +236,10 @@ async function loadImageManifest() {
             const data = await response.json();
             imageNames = generateImageNames(data.count);
         } else {
-            imageNames = generateImageNames(65); // Fallback
+            imageNames = generateImageNames(78); // Fallback
         }
     } catch (e) {
-        imageNames = generateImageNames(65); // Fallback
+        imageNames = generateImageNames(78); // Fallback
     }
 }
 
