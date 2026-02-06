@@ -213,21 +213,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 // Define the folder path where the images are stored
-const folderPath = 'images/Icons/'; // Update this to your actual folder path
+const folderPath = 'images/Icons/';
 
-// Generate the image names dynamically based on the total number of images
+// Image names will be loaded from manifest (populated by GitHub Action from Are.na)
+let imageNames = [];
+
+// Generate image names from a count (image1.jpg, image2.jpg, etc.)
 function generateImageNames(count) {
-    const imageNames = [];
-    // Loop from 1 to the specified count to generate image file names
+    const names = [];
     for (let i = 1; i <= count; i++) {
-        imageNames.push(`image${i}.jpg`); // Create file names like image1.jpg, image2.jpg, etc.
+        names.push(`image${i}.jpg`);
     }
-    return imageNames; // Return the array of generated image names
+    return names;
 }
 
-// Specify the total number of images available in the folder
-const totalImages = 65; // Update this number as needed to match the number of images in your folder
-const imageNames = generateImageNames(totalImages); // Generate the image name list
+// Load image count from manifest, fall back to default
+async function loadImageManifest() {
+    try {
+        const response = await fetch(folderPath + 'manifest.json');
+        if (response.ok) {
+            const data = await response.json();
+            imageNames = generateImageNames(data.count);
+        } else {
+            imageNames = generateImageNames(65); // Fallback
+        }
+    } catch (e) {
+        imageNames = generateImageNames(65); // Fallback
+    }
+}
 
 // Function to randomly select n unique images from the provided image array
 function getRandomImages(imageArray, count) {
@@ -251,8 +264,9 @@ window.addEventListener('load', () => {
 });
 
 // Start animation as soon as DOM is ready (much earlier than window.onload)
-document.addEventListener("DOMContentLoaded", function() {
-    // Start the image shuffling process immediately
+document.addEventListener("DOMContentLoaded", async function() {
+    // Load image manifest from Are.na sync, then start shuffling
+    await loadImageManifest();
     shuffleImagesRepeatedly();
 });
 
