@@ -230,9 +230,13 @@ async function loadImageManifest() {
 
 // Function to randomly select n unique images from the provided image array
 function getRandomImages(imageArray, count) {
-    // Shuffle the array randomly and pick the first `count` elements
-    const shuffled = [...imageArray].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, count); // Return the selected images
+    // Fisher-Yates shuffle for unbiased randomness
+    const shuffled = [...imageArray];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, count);
 }
 
 // Track page load state
