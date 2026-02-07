@@ -216,30 +216,15 @@ document.addEventListener("DOMContentLoaded", function () {
 const folderPath = 'images/Icons/';
 const originalsFolderPath = 'images/Icons/originals/';
 
-// Image names will be loaded from manifest (populated by GitHub Action from Are.na)
+// Image names loaded from manifest (kept in sync with Are.na by GitHub Action)
 let imageNames = [];
 
-// Generate image names from a count (image1.jpg, image2.jpg, etc.)
-function generateImageNames(count) {
-    const names = [];
-    for (let i = 1; i <= count; i++) {
-        names.push(`image${i}.jpg`);
-    }
-    return names;
-}
-
-// Load image count from manifest, fall back to default
+// Load image count from manifest
 async function loadImageManifest() {
-    try {
-        const response = await fetch(folderPath + 'manifest.json');
-        if (response.ok) {
-            const data = await response.json();
-            imageNames = generateImageNames(data.count);
-        } else {
-            imageNames = generateImageNames(65); // Fallback
-        }
-    } catch (e) {
-        imageNames = generateImageNames(65); // Fallback
+    const response = await fetch(folderPath + 'manifest.json');
+    const data = await response.json();
+    for (let i = 1; i <= data.count; i++) {
+        imageNames.push(`image${i}.jpg`);
     }
 }
 
