@@ -363,8 +363,12 @@ function shuffleImagesRepeatedly() {
                 const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
                 setTimeout(performShuffle, nextInterval);
             } else {
-                // Animation complete - hide icons, wait for originals, then reveal all 3 at once
-                imgTags.forEach(img => { img.style.display = 'none'; });
+                // Animation complete - show final thumbnails, wait for originals to finalize
+                finalImages.forEach((image, index) => {
+                    if (imgTags[index]) {
+                        imgTags[index].src = folderPath + image;
+                    }
+                });
 
                 finalOriginalsReady.then(() => {
                     if (pageFullyLoaded) {
@@ -383,22 +387,12 @@ function shuffleImagesRepeatedly() {
 
 // Finalize the images - uses pre-determined final images passed from shuffleImagesRepeatedly
 function finalizeImages(imgTags, finalImages) {
-    // Set final image srcs while icons are still hidden
-    if (finalImages) {
-        finalImages.forEach((image, index) => {
-            if (imgTags[index]) {
-                imgTags[index].src = folderPath + image;
-            }
-        });
-    }
-
     // Create duplicates of the finalized images for the right half of the screen
     createDuplicateImages(imgTags, finalImages);
 
-    // Reveal all 3 icons at the same time, with finalized class for mobile opacity
+    // Add finalized class for mobile opacity transition
     imgTags.forEach(img => {
         img.classList.add('finalized');
-        img.style.display = 'block';
     });
 
     // Trigger the rest of the page to load after final images are selected
