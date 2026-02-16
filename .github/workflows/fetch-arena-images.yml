@@ -41,25 +41,29 @@ jobs:
 
           # Are.na API paginates, fetch all pages
           PAGE=1
-          PER=100
+          PER=50
           ALL_URLS=""
 
           while true; do
             RESPONSE=$(curl -sf "https://api.are.na/v2/channels/${CHANNEL_SLUG}/contents?page=${PAGE}&per=${PER}")
 
-            # Extract display image URLs (preserves aspect ratio, ~800px)
-            URLS=$(echo "$RESPONSE" | jq -r '.contents[]? | select(.class == "Image") | .image.display.url // empty')
+            # Count how many contents were actually returned on this page
+            PAGE_COUNT=$(echo "$RESPONSE" | jq -r '.contents | length')
 
-            if [ -z "$URLS" ]; then
+            if [ "$PAGE_COUNT" -eq 0 ] || [ -z "$PAGE_COUNT" ]; then
               break
             fi
 
-            ALL_URLS="${ALL_URLS}${URLS}"$'\n'
+            # Extract display image URLs (preserves aspect ratio, ~800px)
+            URLS=$(echo "$RESPONSE" | jq -r '.contents[]? | select(.class == "Image") | .image.display.url // empty')
 
-            # Check if there are more pages
-            TOTAL=$(echo "$RESPONSE" | jq -r '.length // 0')
-            FETCHED=$((PAGE * PER))
-            if [ "$FETCHED" -ge "$TOTAL" ]; then
+            # Append any image URLs found (pages may have non-image content, keep paginating)
+            if [ -n "$URLS" ]; then
+              ALL_URLS="${ALL_URLS}${URLS}"$'\n'
+            fi
+
+            # Stop if this page returned fewer items than requested (last page)
+            if [ "$PAGE_COUNT" -lt "$PER" ]; then
               break
             fi
 
