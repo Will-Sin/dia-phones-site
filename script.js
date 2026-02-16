@@ -197,13 +197,20 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("device-info").innerText = deviceInfo;
         document.getElementById("browser-info").innerText = browserInfo;
 
-        // Get IP and location information
-        getIPAndLocationInfo(function ({ ipInfo, locationInfo }) {
-            setCookie("ipInfo", ipInfo, 365);
-            setCookie("locationInfo", locationInfo, 365);
-            document.getElementById("ip-info").innerText = ipInfo;
-            document.getElementById("location-info").innerText = locationInfo;
-        });
+        // Defer IP/location lookup so it doesn't compete with image loading
+        function fetchIPAndLocation() {
+            getIPAndLocationInfo(function ({ ipInfo, locationInfo }) {
+                setCookie("ipInfo", ipInfo, 365);
+                setCookie("locationInfo", locationInfo, 365);
+                document.getElementById("ip-info").innerText = ipInfo;
+                document.getElementById("location-info").innerText = locationInfo;
+            });
+        }
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(fetchIPAndLocation);
+        } else {
+            setTimeout(fetchIPAndLocation, 2000);
+        }
     }
 });
 
@@ -228,12 +235,19 @@ async function loadImageManifest() {
     }
 }
 
+// Cryptographically strong random number in [0, 1)
+function cryptoRandom() {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return array[0] / (0xFFFFFFFF + 1);
+}
+
 // Function to randomly select n unique images from the provided image array
 function getRandomImages(imageArray, count) {
-    // Fisher-Yates shuffle for unbiased randomness
+    // Fisher-Yates shuffle with crypto-strength randomness
     const shuffled = [...imageArray];
     for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(cryptoRandom() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled.slice(0, count);
@@ -269,23 +283,49 @@ function shuffleImagesRepeatedly() {
     const finalShuffleInterval = 500; // Final shuffle interval in milliseconds
     const changePoint = Math.floor(totalShuffles * (0.6)); // Point at which to start changing the interval
 
-    // Pre-determine the final images at the START of animation
-    // This ensures consistent final images regardless of load timing
+    // Phase 1: Pick a random subset of 30 images for the shuffle animation
+    const shufflePoolSize = Math.min(30, imageNames.length);
+    const shufflePool = getRandomImages(imageNames, shufflePoolSize);
+
+    // Phase 2: Pick 3 final images from the FULL pool (independent of shuffle pool)
     const finalImages = getRandomImages(imageNames, imgTags.length);
 
-    // Preload all images and wait for them before starting animation
-    const preloadPromises = imageNames.map(image => {
+    // Preload only the shuffle pool (30 images instead of all 125+)
+    // Track which images actually loaded successfully
+    const loadedShuffleImages = new Set();
+    const preloadPromises = shufflePool.map(image => {
         return new Promise((resolve) => {
             const img = new Image();
-            img.onload = resolve;
+            img.onload = () => { loadedShuffleImages.add(image); resolve(); };
             img.onerror = resolve; // Resolve even on error to not block animation
             img.src = folderPath + image;
         });
     });
 
-    // Wait for all images to preload, then start the animation
+    // Preload the 3 final original-resolution images in parallel
+    // These load during the shuffle animation so they're ready at the end
+    const finalOriginalsReady = Promise.all(finalImages.map(image => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = originalsFolderPath + image;
+        });
+    }));
+
+    // Also preload the thumbnail versions of final images (for the icon display)
+    finalImages.forEach(image => {
+        const img = new Image();
+        img.src = folderPath + image;
+    });
+
+    // Wait for shuffle pool to preload, then start the animation
     Promise.all(preloadPromises).then(() => {
-        startShuffleAnimation();
+        // Filter to only successfully loaded images
+        const availableShufflePool = shufflePool.filter(name => loadedShuffleImages.has(name));
+        // Fallback: if nothing loaded, use the full imageNames array
+        const animationPool = availableShufflePool.length > 0 ? availableShufflePool : imageNames;
+        startShuffleAnimation(animationPool);
     });
 
     // Function to calculate the current shuffle interval
@@ -300,46 +340,43 @@ function shuffleImagesRepeatedly() {
     }
 
     // Function to start the shuffle animation after images are preloaded
-    function startShuffleAnimation() {
+    function startShuffleAnimation(animationPool) {
         let shuffleCount = 0; // Counter to track the number of shuffles
 
         // Function to perform a single shuffle
         function performShuffle() {
-            // During shuffling, show random images (but NOT the final images yet)
-            let randomImages;
-            if (shuffleCount < totalShuffles - 1) {
-                // During animation, show random images
-                randomImages = getRandomImages(imageNames, imgTags.length);
-            } else {
-                // On the last shuffle, transition to the pre-determined final images
-                randomImages = finalImages;
-            }
+            if (shuffleCount < totalShuffles) {
+                // During animation, show random images from the preloaded pool
+                const randomImages = getRandomImages(animationPool, imgTags.length);
 
-            // Assign each random image to the corresponding img tag
-            randomImages.forEach((image, index) => {
-                if (imgTags[index]) { // Check if the img tag exists
-                    imgTags[index].style.display = 'block'; // Make the image visible
-                    imgTags[index].src = folderPath + image; // Set the src attribute to the random image
-                }
-            });
+                // Assign each random image to the corresponding img tag
+                randomImages.forEach((image, index) => {
+                    if (imgTags[index]) {
+                        imgTags[index].style.display = 'block';
+                        imgTags[index].src = folderPath + image;
+                    }
+                });
 
-            shuffleCount++; // Increment the shuffle counter
+                shuffleCount++;
 
-            // Check if animation is complete
-            if (shuffleCount >= totalShuffles) {
-                // Animation complete - final images are already displayed
-                // Now just wait for page to fully load before revealing content
-                if (pageFullyLoaded) {
-                    finalizeImages(imgTags, finalImages);
-                } else {
-                    // Page not loaded yet - wait without changing images
-                    // The final images stay displayed while we wait
-                    pendingFinalize = () => finalizeImages(imgTags, finalImages);
-                }
-            } else {
                 // Schedule the next shuffle with the adjusted interval
                 const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
                 setTimeout(performShuffle, nextInterval);
+            } else {
+                // Animation complete - show final thumbnails, wait for originals to finalize
+                finalImages.forEach((image, index) => {
+                    if (imgTags[index]) {
+                        imgTags[index].src = folderPath + image;
+                    }
+                });
+
+                finalOriginalsReady.then(() => {
+                    if (pageFullyLoaded) {
+                        finalizeImages(imgTags, finalImages);
+                    } else {
+                        pendingFinalize = () => finalizeImages(imgTags, finalImages);
+                    }
+                });
             }
         }
 
@@ -350,18 +387,13 @@ function shuffleImagesRepeatedly() {
 
 // Finalize the images - uses pre-determined final images passed from shuffleImagesRepeatedly
 function finalizeImages(imgTags, finalImages) {
-    // Final images are already displayed from the last shuffle
-    // Just ensure they're set (in case this is called directly)
-    if (finalImages) {
-        finalImages.forEach((image, index) => {
-            if (imgTags[index]) {
-                imgTags[index].src = folderPath + image;
-            }
-        });
-    }
-
     // Create duplicates of the finalized images for the right half of the screen
     createDuplicateImages(imgTags, finalImages);
+
+    // Add finalized class for mobile opacity transition
+    imgTags.forEach(img => {
+        img.classList.add('finalized');
+    });
 
     // Trigger the rest of the page to load after final images are selected
     document.querySelector('.body-div').classList.remove('preload'); // Remove the preload class to reveal the rest of the page
