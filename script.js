@@ -345,29 +345,27 @@ function shuffleImagesRepeatedly() {
 
         // Function to perform a single shuffle
         function performShuffle() {
-            // During shuffling, show random images from the preloaded pool
-            let randomImages;
-            if (shuffleCount < totalShuffles - 1) {
+            if (shuffleCount < totalShuffles) {
                 // During animation, show random images from the preloaded pool
-                randomImages = getRandomImages(animationPool, imgTags.length);
+                const randomImages = getRandomImages(animationPool, imgTags.length);
+
+                // Assign each random image to the corresponding img tag
+                randomImages.forEach((image, index) => {
+                    if (imgTags[index]) {
+                        imgTags[index].style.display = 'block';
+                        imgTags[index].src = folderPath + image;
+                    }
+                });
+
+                shuffleCount++;
+
+                // Schedule the next shuffle with the adjusted interval
+                const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
+                setTimeout(performShuffle, nextInterval);
             } else {
-                // On the last shuffle, transition to the pre-determined final images
-                randomImages = finalImages;
-            }
+                // Animation complete - hide icons, wait for originals, then reveal all 3 at once
+                imgTags.forEach(img => { img.style.display = 'none'; });
 
-            // Assign each random image to the corresponding img tag
-            randomImages.forEach((image, index) => {
-                if (imgTags[index]) { // Check if the img tag exists
-                    imgTags[index].style.display = 'block'; // Make the image visible
-                    imgTags[index].src = folderPath + image; // Set the src attribute to the random image
-                }
-            });
-
-            shuffleCount++; // Increment the shuffle counter
-
-            // Check if animation is complete
-            if (shuffleCount >= totalShuffles) {
-                // Animation complete - wait for originals to finish loading and page to fully load
                 finalOriginalsReady.then(() => {
                     if (pageFullyLoaded) {
                         finalizeImages(imgTags, finalImages);
@@ -375,10 +373,6 @@ function shuffleImagesRepeatedly() {
                         pendingFinalize = () => finalizeImages(imgTags, finalImages);
                     }
                 });
-            } else {
-                // Schedule the next shuffle with the adjusted interval
-                const nextInterval = getShuffleInterval(shuffleCount, totalShuffles, initialShuffleInterval, finalShuffleInterval, changePoint);
-                setTimeout(performShuffle, nextInterval);
             }
         }
 
@@ -389,8 +383,7 @@ function shuffleImagesRepeatedly() {
 
 // Finalize the images - uses pre-determined final images passed from shuffleImagesRepeatedly
 function finalizeImages(imgTags, finalImages) {
-    // Final images are already displayed from the last shuffle
-    // Just ensure they're set (in case this is called directly)
+    // Set final image srcs while icons are still hidden
     if (finalImages) {
         finalImages.forEach((image, index) => {
             if (imgTags[index]) {
@@ -401,6 +394,12 @@ function finalizeImages(imgTags, finalImages) {
 
     // Create duplicates of the finalized images for the right half of the screen
     createDuplicateImages(imgTags, finalImages);
+
+    // Reveal all 3 icons at the same time, with finalized class for mobile opacity
+    imgTags.forEach(img => {
+        img.classList.add('finalized');
+        img.style.display = 'block';
+    });
 
     // Trigger the rest of the page to load after final images are selected
     document.querySelector('.body-div').classList.remove('preload'); // Remove the preload class to reveal the rest of the page

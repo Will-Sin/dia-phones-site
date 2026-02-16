@@ -375,6 +375,11 @@ display: block;
     }
 
     .icon {
+        opacity: 1;
+        transition: top 0.5s ease-in-out, bottom 0.5s ease-in-out, opacity 0.5s ease-in-out;
+    }
+
+    .icon.finalized {
         opacity: 0.2;
     }
 
