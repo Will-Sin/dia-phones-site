@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%233b6ef5%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Dashboard</h1>
+    <div class="topbar-actions">
+      <span id="next-checkin" class="muted"></span>
+      <button id="checkin-now" class="ghost">Check in now</button>
+      <button id="open-settings" class="ghost" aria-label="Settings">Settings</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel tasks-panel">
+      <div class="panel-head">
+        <h2>Tasks</h2>
+        <div class="seg" role="tablist" aria-label="Group tasks by">
+          <button data-group="project" class="active">By project</button>
+          <button data-group="priority">By priority</button>
+        </div>
+      </div>
+
+      <form id="add-task" class="add-task" autocomplete="off">
+        <input id="task-title" placeholder="New task..." required>
+        <select id="task-project" aria-label="Project"></select>
+        <select id="task-priority" aria-label="Priority">
+          <option value="1">High</option>
+          <option value="2" selected>Medium</option>
+          <option value="3">Low</option>
+        </select>
+        <button type="submit">Add</button>
+      </form>
+
+      <label class="show-done"><input type="checkbox" id="show-done"> Show completed</label>
+      <div id="task-groups"></div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="panel-head"><h2>Projects</h2></div>
+        <form id="add-project" class="add-project" autocomplete="off">
+          <input id="project-name" placeholder="New project..." required>
+          <button type="submit">Add</button>
+        </form>
+        <ul id="project-list" class="project-list"></ul>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Today</h2></div>
+        <div id="today-stats" class="stats"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Check-ins</h2></div>
+        <ul id="checkin-log" class="checkin-log"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <!-- Floating timer, top right -->
+  <div id="timer-box" class="timer-box" hidden>
+    <div class="timer-task" id="timer-task"></div>
+    <div class="timer-time" id="timer-time">00:00</div>
+    <div class="timer-bar"><div id="timer-progress"></div></div>
+    <div class="timer-actions">
+      <button id="timer-pause" class="ghost small">Pause</button>
+      <button id="timer-plus" class="ghost small" title="Add 5 minutes">+5</button>
+      <button id="timer-stop" class="ghost small">Stop</button>
+      <button id="timer-popout" class="ghost small" title="Keep on top of all windows">Pop out</button>
+    </div>
+  </div>
+
+  <!-- Start-timer dialog -->
+  <dialog id="start-dialog">
+    <form method="dialog" class="dialog-body">
+      <h3>How long do you want to spend?</h3>
+      <p id="start-task-name" class="muted"></p>
+      <div class="durations">
+        <button type="button" data-min="15">15 min</button>
+        <button type="button" data-min="25">25 min</button>
+        <button type="button" data-min="40">40 min</button>
+      </div>
+      <div class="custom-row">
+        <input id="custom-min" type="number" min="1" max="600" placeholder="Custom">
+        <span class="muted">min</span>
+        <button type="button" id="start-custom">Start</button>
+      </div>
+      <div class="dialog-foot"><button value="cancel" class="ghost">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <!-- Timer finished dialog -->
+  <dialog id="done-dialog">
+    <form method="dialog" class="dialog-body">
+      <h3>Time's up</h3>
+      <p id="done-task-name" class="muted"></p>
+      <div class="dialog-foot spread">
+        <button type="button" id="done-complete">Mark task done</button>
+        <button type="button" id="done-again" class="ghost">Another round</button>
+        <button value="close" class="ghost">Keep it open</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Hourly check-in dialog -->
+  <dialog id="checkin-dialog">
+    <div class="dialog-body" id="checkin-slot"></div>
+  </dialog>
+
+  <!-- Settings dialog -->
+  <dialog id="settings-dialog">
+    <form method="dialog" class="dialog-body">
+      <h3>Settings</h3>
+      <label class="row"><input type="checkbox" id="set-checkins"> Hourly check-ins</label>
+      <label class="row">Check-in every <input type="number" id="set-interval" min="5" max="480" style="width:5em"> min</label>
+      <label class="row"><input type="checkbox" id="set-sound"> Sound when timer ends</label>
+      <p class="muted small-text">Desktop notifications: <span id="notif-status"></span>
+        <button type="button" id="notif-enable" class="ghost small">Enable</button></p>
+      <div class="dialog-foot spread">
+        <button type="button" id="export-data" class="ghost">Export JSON</button>
+        <button value="close">Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
