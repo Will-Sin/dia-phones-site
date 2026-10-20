@@ -1,0 +1,24 @@
+{
+  "name": "focus-dashboard",
+  "productName": "Dashboard",
+  "version": "1.0.0",
+  "description": "Personal dashboard: tasks by project and priority, an always-on-top focus timer, and hourly check-ins.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "44.9.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "local.focus-dashboard",
+    "productName": "Dashboard",
+    "files": ["main.js", "preload.js", "src/**", "assets/**"],
+    "mac": { "target": "dmg", "category": "public.app-category.productivity" },
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage" }
+  }
+}

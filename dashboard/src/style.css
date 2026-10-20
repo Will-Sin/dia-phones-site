@@ -29,6 +29,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -71,7 +72,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   justify-content: space-between;
   gap: 12px;
   padding: 16px 24px;
-  padding-right: 260px; /* leave room for the timer box */
   border-bottom: 1px solid var(--line);
 }
 .topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -85,7 +85,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 }
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; padding: 16px; }
-  .topbar { padding: 12px 16px; padding-right: 16px; }
+  .topbar { padding: 12px 16px; }
 }
 .panel {
   background: var(--panel);
@@ -94,7 +94,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   padding: 16px;
 }
 .side { display: flex; flex-direction: column; gap: 20px; }
-@media (min-width: 861px) { body.timer-on .side { margin-top: 70px; } }
 .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
 
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -153,27 +152,30 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .checkin-log li:last-child { border-bottom: 0; }
 .checkin-log time { font-size: 12px; color: var(--muted); }
 
-/* Floating timer */
+/* Timer window (frameless, always on top) */
+body.timer-window { background: transparent; overflow: hidden; user-select: none; }
 .timer-box {
   position: fixed;
-  top: 12px;
-  right: 12px;
-  width: 230px;
+  inset: 6px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 10px 12px;
-  z-index: 50;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  padding: 8px 12px;
+  -webkit-app-region: drag;
 }
-.timer-box[hidden] { display: none; }
+.timer-box button { -webkit-app-region: no-drag; }
 .timer-task { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.timer-time { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.timer-time { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1.2; }
 .timer-box.paused .timer-time { color: var(--muted); }
 .timer-box.over .timer-time { color: var(--high); }
 .timer-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 4px 0 8px; }
-.timer-bar div { height: 100%; width: 0; background: var(--accent); transition: width 0.5s linear; }
+.timer-bar div { height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }
 .timer-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.timer-done-label { font-size: 13px; font-weight: 600; color: var(--high); margin-bottom: 6px; }
+
+/* Check-in window */
+body.checkin-window { background: var(--panel); }
 
 /* Dialogs */
 dialog {

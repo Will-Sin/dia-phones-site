@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>My Dashboard</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%233b6ef5%27/%3E%3C/svg%3E">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +12,7 @@
     <div class="topbar-actions">
       <span id="next-checkin" class="muted"></span>
       <button id="checkin-now" class="ghost">Check in now</button>
-      <button id="open-settings" class="ghost" aria-label="Settings">Settings</button>
+      <button id="open-settings" class="ghost">Settings</button>
     </div>
   </header>
 
@@ -64,20 +63,6 @@
     </aside>
   </main>
 
-  <!-- Floating timer, top right -->
-  <div id="timer-box" class="timer-box" hidden>
-    <div class="timer-task" id="timer-task"></div>
-    <div class="timer-time" id="timer-time">00:00</div>
-    <div class="timer-bar"><div id="timer-progress"></div></div>
-    <div class="timer-actions">
-      <button id="timer-pause" class="ghost small">Pause</button>
-      <button id="timer-plus" class="ghost small" title="Add 5 minutes">+5</button>
-      <button id="timer-stop" class="ghost small">Stop</button>
-      <button id="timer-popout" class="ghost small" title="Keep on top of all windows">Pop out</button>
-    </div>
-  </div>
-
-  <!-- Start-timer dialog -->
   <dialog id="start-dialog">
     <form method="dialog" class="dialog-body">
       <h3>How long do you want to spend?</h3>
@@ -96,33 +81,12 @@
     </form>
   </dialog>
 
-  <!-- Timer finished dialog -->
-  <dialog id="done-dialog">
-    <form method="dialog" class="dialog-body">
-      <h3>Time's up</h3>
-      <p id="done-task-name" class="muted"></p>
-      <div class="dialog-foot spread">
-        <button type="button" id="done-complete">Mark task done</button>
-        <button type="button" id="done-again" class="ghost">Another round</button>
-        <button value="close" class="ghost">Keep it open</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- Hourly check-in dialog -->
-  <dialog id="checkin-dialog">
-    <div class="dialog-body" id="checkin-slot"></div>
-  </dialog>
-
-  <!-- Settings dialog -->
   <dialog id="settings-dialog">
     <form method="dialog" class="dialog-body">
       <h3>Settings</h3>
-      <label class="row"><input type="checkbox" id="set-checkins"> Hourly check-ins</label>
-      <label class="row">Check-in every <input type="number" id="set-interval" min="5" max="480" style="width:5em"> min</label>
-      <label class="row"><input type="checkbox" id="set-sound"> Sound when timer ends</label>
-      <p class="muted small-text">Desktop notifications: <span id="notif-status"></span>
-        <button type="button" id="notif-enable" class="ghost small">Enable</button></p>
+      <label class="row"><input type="checkbox" id="set-checkins"> Check-ins</label>
+      <label class="row">Check in every <input type="number" id="set-interval" min="5" max="480" style="width:5em"> min</label>
+      <label class="row"><input type="checkbox" id="set-sound"> Sounds</label>
       <div class="dialog-foot spread">
         <button type="button" id="export-data" class="ghost">Export JSON</button>
         <button value="close">Done</button>
@@ -130,6 +94,7 @@
     </form>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="shared.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>

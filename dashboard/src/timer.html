@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Timer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="timer-window">
+  <div class="timer-box" id="box">
+    <div class="timer-task" id="task" title="Drag to move"></div>
+    <div class="timer-time" id="time">00:00</div>
+    <div class="timer-bar"><div id="progress"></div></div>
+    <div class="timer-actions" id="running-actions">
+      <button id="pause" class="ghost small">Pause</button>
+      <button id="plus" class="ghost small" title="Add 5 minutes">+5</button>
+      <button id="stop" class="ghost small">Stop</button>
+      <button id="open" class="ghost small" title="Open dashboard">Open</button>
+    </div>
+    <div id="done-actions" hidden>
+      <div class="timer-done-label">Time's up</div>
+      <div class="timer-actions">
+        <button id="complete" class="small" title="Mark the task done">Done</button>
+        <button id="again" class="ghost small" title="Pick a new duration">Again</button>
+        <button id="plus2" class="ghost small" title="Add 5 minutes">+5</button>
+        <button id="stop2" class="ghost small">Stop</button>
+      </div>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+  <script src="timer.js"></script>
+</body>
+</html>

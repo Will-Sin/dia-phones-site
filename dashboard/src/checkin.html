@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Check-in</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="checkin-window">
+  <div class="dialog-body checkin-form">
+    <h3>Check-in</h3>
+    <p id="worked" class="muted small-text" hidden></p>
+    <textarea id="did" placeholder="What have you done since the last check-in?"></textarea>
+    <div class="small-text muted">How's it going?</div>
+    <div class="moods" id="moods"></div>
+    <textarea id="note" placeholder="Anything in the way? Notes for later?" style="min-height:70px"></textarea>
+    <div class="dialog-foot">
+      <button type="button" class="ghost" id="skip">Skip</button>
+      <button type="button" id="save">Save</button>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+  <script src="checkin.js"></script>
+</body>
+</html>
