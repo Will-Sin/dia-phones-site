@@ -394,7 +394,7 @@ display: block;
 
 }
 
-/* Text glow (trial, not yet committed): soft ink halo on all text, purple on hover */
+/* Text glow: soft ink halo on all text, purple on hover */
 body {
     text-shadow:
         0 0 1px rgba(28, 37, 43, 0.35),
