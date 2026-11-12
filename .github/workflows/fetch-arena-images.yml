@@ -23,139 +23,116 @@ jobs:
 
       - name: Ensure ImageMagick is available
         run: |
-          sudo apt-get update && sudo apt-get install -y imagemagick webp libwebp-dev libheif-dev libraw-dev librsvg2-bin
+          if ! command -v convert &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y imagemagick
+          else
+            echo "ImageMagick already installed"
+          fi
 
       - name: Fetch and process Are.na images
         run: |
-          set -e
-
           CHANNEL_SLUG="dia-phone-slot-machine"
           OUTPUT_DIR="images/Icons"
-          ORIGINALS_DIR="images/Icons/originals"
           MAX_WIDTH=150  # 2x retina for 70px display
 
           mkdir -p "$OUTPUT_DIR"
-          mkdir -p "$ORIGINALS_DIR"
 
-          echo "Fetching channel contents from Are.na..."
+          echo "Fetching channel contents from Are.na (v3 API)..."
 
-          # Are.na API paginates, fetch all pages
+          # Are.na API v3 paginates, fetch all pages
           PAGE=1
-          PER=50
+          PER=100
           ALL_URLS=""
 
           while true; do
-            RESPONSE=$(curl -sf "https://api.are.na/v2/channels/${CHANNEL_SLUG}/contents?page=${PAGE}&per=${PER}")
+            HTTP_CODE=$(curl -s -o /tmp/arena_response.json -w "%{http_code}" \
+              "https://api.are.na/v3/channels/${CHANNEL_SLUG}/contents?page=${PAGE}&per=${PER}")
 
-            # Count how many contents were actually returned on this page
-            PAGE_COUNT=$(echo "$RESPONSE" | jq -r '.contents | length')
+            if [ "$HTTP_CODE" -ne 200 ]; then
+              echo "ERROR: Are.na API returned HTTP $HTTP_CODE on page $PAGE"
+              cat /tmp/arena_response.json 2>/dev/null || true
+              exit 1
+            fi
 
-            if [ "$PAGE_COUNT" -eq 0 ] || [ -z "$PAGE_COUNT" ]; then
+            echo "Page $PAGE fetched (HTTP $HTTP_CODE)"
+
+            # v3 API: items are in .data[], type is "Image", URL is .image.src
+            URLS=$(jq -r '.data[]? | select(.type == "Image") | .image.src // empty' /tmp/arena_response.json)
+
+            if [ -z "$URLS" ]; then
+              echo "No image URLs found on page $PAGE, stopping pagination."
               break
             fi
 
-            # Extract display image URLs (preserves aspect ratio, ~800px)
-            URLS=$(echo "$RESPONSE" | jq -r '.contents[]? | select(.class == "Image") | .image.display.url // empty')
+            PAGE_COUNT=$(echo "$URLS" | wc -l)
+            echo "  Found $PAGE_COUNT images on page $PAGE"
+            ALL_URLS="${ALL_URLS}${URLS}"$'\n'
 
-            # Append any image URLs found (pages may have non-image content, keep paginating)
-            if [ -n "$URLS" ]; then
-              ALL_URLS="${ALL_URLS}${URLS}"$'\n'
-            fi
+            # Check if there are more pages
+            TOTAL=$(jq -r '.total_count // .length // 0' /tmp/arena_response.json)
+            FETCHED=$((PAGE * PER))
+            echo "  Fetched $FETCHED / $TOTAL total items"
 
-            # Stop if this page returned fewer items than requested (last page)
-            if [ "$PAGE_COUNT" -lt "$PER" ]; then
+            if [ "$FETCHED" -ge "$TOTAL" ]; then
               break
             fi
 
             PAGE=$((PAGE + 1))
           done
 
+          rm -f /tmp/arena_response.json
+
           # Remove empty lines
           ALL_URLS=$(echo "$ALL_URLS" | sed '/^$/d')
 
           if [ -z "$ALL_URLS" ]; then
-            echo "No images found in channel. Exiting."
+            echo "ERROR: No images found in channel."
             exit 1
           fi
 
           COUNT=$(echo "$ALL_URLS" | wc -l)
-          echo "Found $COUNT images"
+          echo "Found $COUNT total images across all pages"
 
           # Clear old images
           rm -f "$OUTPUT_DIR"/image*.jpg
-          rm -f "$ORIGINALS_DIR"/image*.jpg
 
           # Download and resize each image
           INDEX=1
+          FAILED=0
           while IFS= read -r URL; do
             if [ -n "$URL" ]; then
               OUTFILE="$OUTPUT_DIR/image${INDEX}.jpg"
               echo "Downloading image ${INDEX}/${COUNT}..."
-              TMPFILE="${OUTFILE}.download"
-              curl -sf "$URL" -o "$TMPFILE"
-
-              # Detect actual image format from file contents and use correct extension
-              # so ImageMagick can identify the decoder to use
-              MIME=$(file --mime-type -b "$TMPFILE")
-              EXT="${MIME#image/}"
-
-              if [ "$MIME" = "$EXT" ] || [ -z "$EXT" ]; then
-                echo "Skipping image ${INDEX}: not an image (${MIME})"
-                rm -f "$TMPFILE"
-                continue
-              fi
-
-              # Normalize common MIME subtypes to file extensions
-              case "$EXT" in
-                jpeg)      EXT="jpg" ;;
-                svg+xml)   EXT="svg" ;;
-                x-icon)    EXT="ico" ;;
-                vnd.microsoft.icon) EXT="ico" ;;
-              esac
-
-              TYPED_TMP="${OUTFILE}.tmp.${EXT}"
-              mv "$TMPFILE" "$TYPED_TMP"
-
-              ORIG_OUTFILE="$ORIGINALS_DIR/image${INDEX}.jpg"
-
-              # Save original-quality version (for high-res side display)
-              # Convert to JPEG but keep full resolution
-              if convert "${TYPED_TMP}[0]" \
-                -quality 90 \
-                -strip \
-                "$ORIG_OUTFILE"; then
-                echo "Saved original image ${INDEX} (${EXT})"
-              else
-                echo "Warning: Failed to save original image ${INDEX} (${MIME})"
-              fi
-
-              # Resize to max width, preserving aspect ratio, compress as JPEG
-              # Use [0] to take only the first frame from animated formats (GIF, APNG)
-              if convert "${TYPED_TMP}[0]" \
-                -resize "${MAX_WIDTH}>" \
-                -quality 80 \
-                -strip \
-                "$OUTFILE"; then
-                echo "Converted image ${INDEX} (${EXT})"
+              if curl -sf "$URL" -o "${OUTFILE}.tmp"; then
+                # Resize to max width, preserving aspect ratio, compress as JPEG
+                convert "${OUTFILE}.tmp" \
+                  -resize "${MAX_WIDTH}>" \
+                  -quality 80 \
+                  -strip \
+                  "$OUTFILE"
+                rm -f "${OUTFILE}.tmp"
                 INDEX=$((INDEX + 1))
               else
-                echo "Warning: Failed to convert image ${INDEX} (${MIME}), skipping"
-                rm -f "$OUTFILE" "$ORIG_OUTFILE"
+                echo "  WARNING: Failed to download image $INDEX, skipping"
+                rm -f "${OUTFILE}.tmp"
+                FAILED=$((FAILED + 1))
               fi
-
-              rm -f "$TYPED_TMP"
             fi
           done <<< "$ALL_URLS"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "WARNING: $FAILED images failed to download"
+          fi
 
           # Write the count so script.js can pick it up
           FINAL_COUNT=$(ls "$OUTPUT_DIR"/image*.jpg 2>/dev/null | wc -l)
           echo "{\"count\": ${FINAL_COUNT}}" > "$OUTPUT_DIR/manifest.json"
-          echo "Processed $FINAL_COUNT images"
+          echo "Processed $FINAL_COUNT images successfully"
 
       - name: Check for changes
         id: changes
         run: |
-          git add images/Icons/ images/Icons/originals/
+          git add images/Icons/
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
