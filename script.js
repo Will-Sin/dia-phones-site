@@ -228,7 +228,7 @@ let imageNames = [];
 
 // Load image count from manifest
 async function loadImageManifest() {
-    const response = await fetch(folderPath + 'manifest.json');
+    const response = await fetch(folderPath + 'manifest.json?v=' + Date.now());
     const data = await response.json();
     for (let i = 1; i <= data.count; i++) {
         imageNames.push(`image${i}.jpg`);
